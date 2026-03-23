@@ -4,6 +4,7 @@ import helmet from "@fastify/helmet"
 import rawBody from "@fastify/raw-body"
 import { errorHandler } from "./middleware/errorHandler.js"
 import healthRoutes from "./modules/health/health.routes.js"
+import webhookRoutes from "./modules/webhook/webhook.routes.js"
 import { config } from "./config/env.js"
 
 const buildApp = async () => {
@@ -32,6 +33,7 @@ const buildApp = async () => {
 
   // routes
   await app.register(healthRoutes, { prefix: "/api/v1" })
+  await app.register(webhookRoutes, { prefix: "/api/v1/webhook" })
 
   // error handler
   app.setErrorHandler(errorHandler)
