@@ -1,3 +1,4 @@
+// CodeHalcon Backend — Entry Point
 import buildApp from "./app.js"
 import { config } from "./config/env.js"
 
