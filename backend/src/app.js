@@ -9,9 +9,7 @@ const buildApp = async () => {
   const app = Fastify({
     logger: {
       level: config.isDev ? "debug" : "info",
-      transport: config.isDev
-        ? { target: "pino-pretty", options: { colorize: true } }
-        : undefined,
+      transport: config.isDev ? { target: "pino-pretty", options: { colorize: true } } : undefined,
     },
   })
 
