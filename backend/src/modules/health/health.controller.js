@@ -1,3 +1,4 @@
+// Health check controller
 import { ApiResponse } from "../../utils/ApiResponse.js"
 
 export const healthCheck = async (request, reply) => {
