@@ -41,12 +41,12 @@ export const fetchAndParseDiff = async (installationId, owner, repo, pullNumber)
   const octokit = await getInstallationClient(installationId)
 
   // Fetch raw diff from GitHub
-  const response = await octokit.rest.pulls.get({
+  const response = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
     owner,
     repo,
     pull_number: pullNumber,
-    mediaType: {
-      format: "diff",
+    headers: {
+      accept: "application/vnd.github.v3.diff",
     },
   })
 
@@ -63,7 +63,6 @@ export const fetchAndParseDiff = async (installationId, owner, repo, pullNumber)
     totalChanges: file.hunks.reduce((acc, h) => acc + h.changes.length, 0),
   }))
 
-  // Filter out files with no chunks
   const reviewableFiles = chunkedFiles.filter((f) => f.chunks.length > 0)
 
   return reviewableFiles
