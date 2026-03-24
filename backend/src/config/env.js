@@ -18,13 +18,23 @@ requiredEnvVars.forEach((key) => {
   }
 })
 
+const loadPrivateKey = () => {
+  try {
+    return readFileSync(process.env.GITHUB_PRIVATE_KEY_PATH, "utf8")
+  } catch (err) {
+    throw new Error(
+      `Failed to read GitHub private key from path "${process.env.GITHUB_PRIVATE_KEY_PATH}": ${err.message}`
+    )
+  }
+}
+
 export const config = {
   port: parseInt(process.env.PORT, 10) || 3000,
   nodeEnv: process.env.NODE_ENV || "development",
   isDev: process.env.NODE_ENV === "development",
   github: {
     appId: process.env.GITHUB_APP_ID,
-    privateKey: readFileSync(process.env.GITHUB_PRIVATE_KEY_PATH, "utf8"),
+    privateKey: loadPrivateKey(),
     webhookSecret: process.env.GITHUB_WEBHOOK_SECRET,
   },
   groq: {

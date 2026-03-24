@@ -12,11 +12,33 @@ const RETRY_DELAY_MS = 1000
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+// Determine if an error is transient and worth retrying
+const isTransientError = (err) => {
+  // Network level errors
+  if (err.code === "ECONNRESET" || err.code === "ETIMEDOUT" || err.code === "ECONNREFUSED") {
+    return true
+  }
+  // Timeout by name
+  if (err.name === "TimeoutError" || err.name === "AbortError") {
+    return true
+  }
+  // HTTP status based — 429 rate limit and 5xx server errors are transient
+  const status = err.response?.status || err.status
+  if (status === 429 || (status >= 500 && status <= 599)) {
+    return true
+  }
+  return false
+}
+
 // Parse LLM response safely
 const parseReviewResponse = (content) => {
   try {
-    // Strip any markdown code fences if model adds them
-    const cleaned = content.replace(/```json|```/g, "").trim()
+    // Strip markdown code fences — case insensitive, with optional metadata
+    const cleaned = content
+      .replace(/^```[a-z]*\s*/im, "")
+      .replace(/```\s*$/im, "")
+      .trim()
+
     const parsed = JSON.parse(cleaned)
 
     return {
@@ -48,7 +70,7 @@ const reviewChunk = async (filename, language, chunk, attempt = 1) => {
           content: buildReviewPrompt(filename, language, chunk),
         },
       ],
-      temperature: 0.1, // low temperature for consistent, focused reviews
+      temperature: 0.1,
       max_tokens: 2048,
     })
 
@@ -60,11 +82,14 @@ const reviewChunk = async (filename, language, chunk, attempt = 1) => {
 
     return parseReviewResponse(content)
   } catch (err) {
-    if (attempt < MAX_RETRIES) {
+    if (attempt < MAX_RETRIES && isTransientError(err)) {
       await sleep(RETRY_DELAY_MS * attempt)
       return reviewChunk(filename, language, chunk, attempt + 1)
     }
-    throw new ApiError(500, `Groq review failed after ${MAX_RETRIES} attempts: ${err.message}`)
+    throw new ApiError(
+      500,
+      `Groq review failed after ${attempt} attempt(s): ${err.message}`
+    )
   }
 }
 
@@ -77,13 +102,13 @@ const reviewFile = async (file) => {
     chunkResults.push(result)
   }
 
-  // Merge issues from all chunks
   const allIssues = chunkResults.flatMap((r) => r.issues)
   const summaries = chunkResults.map((r) => r.summary).filter(Boolean)
   const scores = chunkResults.map((r) => r.score).filter((s) => s !== null)
-  const avgScore = scores.length > 0
-    ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
-    : null
+  const avgScore =
+    scores.length > 0
+      ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+      : null
 
   return {
     filename: file.filename,
