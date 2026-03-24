@@ -1,7 +1,6 @@
 import { App } from "@octokit/app"
 import { config } from "../../config/env.js"
 
-// Initialize GitHub App
 const githubApp = new App({
   appId: config.github.appId,
   privateKey: config.github.privateKey,
@@ -10,33 +9,15 @@ const githubApp = new App({
   },
 })
 
-// Get an installation-level Octokit client for a specific installation
 export const getInstallationClient = async (installationId) => {
   const octokit = await githubApp.getInstallationOctokit(installationId)
   return octokit
 }
 
-// Get PR diff
-export const getPullRequestDiff = async (installationId, owner, repo, pullNumber) => {
-  const octokit = await getInstallationClient(installationId)
-
-  const { data } = await octokit.rest.pulls.get({
-    owner,
-    repo,
-    pull_number: pullNumber,
-    mediaType: {
-      format: "diff",
-    },
-  })
-
-  return data
-}
-
-// Post a review comment on a PR
 export const postReviewComment = async (installationId, owner, repo, pullNumber, comments) => {
   const octokit = await getInstallationClient(installationId)
 
-  await octokit.rest.pulls.createReview({
+  await octokit.request("POST /repos/{owner}/{repo}/pulls/{pull_number}/reviews", {
     owner,
     repo,
     pull_number: pullNumber,
@@ -45,11 +26,10 @@ export const postReviewComment = async (installationId, owner, repo, pullNumber,
   })
 }
 
-// Post a summary comment on a PR
 export const postSummaryComment = async (installationId, owner, repo, pullNumber, body) => {
   const octokit = await getInstallationClient(installationId)
 
-  await octokit.rest.issues.createComment({
+  await octokit.request("POST /repos/{owner}/{repo}/issues/{issue_number}/comments", {
     owner,
     repo,
     issue_number: pullNumber,
