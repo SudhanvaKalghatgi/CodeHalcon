@@ -1,7 +1,7 @@
 import Fastify from "fastify"
 import cors from "@fastify/cors"
 import helmet from "@fastify/helmet"
-import rawBody from "@fastify/raw-body"
+import rawBody from "fastify-raw-body"
 import { errorHandler } from "./middleware/errorHandler.js"
 import healthRoutes from "./modules/health/health.routes.js"
 import webhookRoutes from "./modules/webhook/webhook.routes.js"
