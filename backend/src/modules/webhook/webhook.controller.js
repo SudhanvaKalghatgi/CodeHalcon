@@ -25,7 +25,13 @@ export const handleWebhook = async (request, reply) => {
   const signature = request.headers["x-hub-signature-256"]
   const rawBody = request.rawBody
 
+  request.log.info({
+    hasSignature: !!signature,
+    hasRawBody: !!rawBody,
+  }, "Webhook debug")
+
   if (!verifyWebhookSignature(rawBody, signature)) {
+    request.log.warn("Webhook signature verification failed")
     throw new ApiError(401, "Invalid webhook signature")
   }
 
@@ -66,7 +72,6 @@ export const handleWebhook = async (request, reply) => {
 
   request.log.info({ pullNumber, owner, repo, action, sha }, "PR event received")
 
-  // Trigger review orchestration
   orchestrateReview({ installationId, owner, repo, pullNumber, sha }).catch((err) => {
     request.log.error({ err, pullNumber, owner, repo }, "Review orchestration failed")
   })
