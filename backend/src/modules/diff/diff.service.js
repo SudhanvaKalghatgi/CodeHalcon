@@ -1,12 +1,12 @@
 import { getInstallationClient } from "../github/github.service.js"
 import { parseDiff } from "./diff.parser.js"
-import { encoding_for_model } from "js-tiktoken"
+import { get_encoding } from "tiktoken"
 
 const MAX_TOKENS_PER_CHUNK = 3000
 
 // Count tokens in a string
 const countTokens = (text) => {
-  const enc = encoding_for_model("gpt-4")
+  const enc = get_encoding("cl100k_base")
   const tokens = enc.encode(text)
   enc.free()
   return tokens.length
