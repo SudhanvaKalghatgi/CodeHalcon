@@ -12,17 +12,13 @@ const RETRY_DELAY_MS = 1000
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
-// Determine if an error is transient and worth retrying
 const isTransientError = (err) => {
-  // Network level errors
   if (err.code === "ECONNRESET" || err.code === "ETIMEDOUT" || err.code === "ECONNREFUSED") {
     return true
   }
-  // Timeout by name
   if (err.name === "TimeoutError" || err.name === "AbortError") {
     return true
   }
-  // HTTP status based — 429 rate limit and 5xx server errors are transient
   const status = err.response?.status || err.status
   if (status === 429 || (status >= 500 && status <= 599)) {
     return true
@@ -30,10 +26,8 @@ const isTransientError = (err) => {
   return false
 }
 
-// Parse LLM response safely
 const parseReviewResponse = (content) => {
   try {
-    // Strip markdown code fences — case insensitive, with optional metadata
     const cleaned = content
       .replace(/^```[a-z]*\s*/im, "")
       .replace(/```\s*$/im, "")
@@ -55,7 +49,6 @@ const parseReviewResponse = (content) => {
   }
 }
 
-// Review a single chunk with retry logic
 const reviewChunk = async (filename, language, chunk, attempt = 1) => {
   try {
     const response = await groq.chat.completions.create({
@@ -93,7 +86,6 @@ const reviewChunk = async (filename, language, chunk, attempt = 1) => {
   }
 }
 
-// Review all chunks for a single file
 const reviewFile = async (file) => {
   const chunkResults = []
 
@@ -119,7 +111,6 @@ const reviewFile = async (file) => {
   }
 }
 
-// Review all files in a PR
 export const reviewPullRequest = async (parsedFiles) => {
   if (!parsedFiles || parsedFiles.length === 0) {
     return {
