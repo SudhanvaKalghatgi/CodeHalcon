@@ -1,17 +1,30 @@
 import { App } from "@octokit/app"
 import { config } from "../../config/env.js"
 
-const githubApp = new App({
-  appId: config.github.appId,
-  privateKey: config.github.privateKey,
-  webhooks: {
-    secret: config.github.webhookSecret,
-  },
-})
+let githubApp = null
+
+const getGithubApp = () => {
+  if (githubApp) return githubApp
+
+  if (!config.github.appId || !config.github.privateKey || !config.github.webhookSecret) {
+    throw new Error("Missing required GitHub App configuration")
+  }
+
+  githubApp = new App({
+    appId: config.github.appId,
+    privateKey: config.github.privateKey,
+    webhooks: {
+      secret: config.github.webhookSecret,
+    },
+  })
+
+  return githubApp
+}
 
 export const getInstallationClient = async (installationId) => {
   try {
-    const octokit = await githubApp.getInstallationOctokit(installationId)
+    const app = getGithubApp()
+    const octokit = await app.getInstallationOctokit(installationId)
     return octokit
   } catch (err) {
     throw new Error(`Failed to get installation client: ${err.message}`)
@@ -46,5 +59,3 @@ export const postSummaryComment = async (installationId, owner, repo, pullNumber
     throw new Error(`Failed to post summary comment: ${err.message}`)
   }
 }
-
-export default githubApp
