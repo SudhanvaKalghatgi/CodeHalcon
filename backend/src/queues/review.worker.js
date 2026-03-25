@@ -7,10 +7,15 @@ const createConnection = () =>
   new IORedis(config.redis.url, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
-    tls: config.redis.url.startsWith("rediss://") ? {} : undefined,
-    keepAlive: 30000,
-    connectTimeout: 10000,
-    retryStrategy: (times) => Math.min(times * 500, 5000),
+    lazyConnect: false,
+    keepAlive: 5000,
+    connectTimeout: 20000,
+    commandTimeout: 10000,
+    retryStrategy: (times) => {
+      if (times > 10) return null
+      return Math.min(times * 200, 2000)
+    },
+    reconnectOnError: () => true,
   })
 
 const processReviewJob = async (job) => {
