@@ -8,6 +8,9 @@ const createConnection = () =>
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
     tls: config.redis.url.startsWith("rediss://") ? {} : undefined,
+    keepAlive: 30000,
+    connectTimeout: 10000,
+    retryStrategy: (times) => Math.min(times * 500, 5000),
   })
 
 const processReviewJob = async (job) => {

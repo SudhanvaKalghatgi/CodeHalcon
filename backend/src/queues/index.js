@@ -6,7 +6,10 @@ const createConnection = () =>
   new IORedis(config.redis.url, {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
-    tls: config.redis.url.startsWith("rediss://") ? {} : undefined,
+    tls: config.redis.url.startsWith("redis://") ? {} : undefined,
+    keepAlive: 30000,
+    connectTimeout: 10000,
+    retryStrategy: (times) => Math.min(times * 500, 5000),
   })
 
 export const reviewQueue = new Queue("review", {
