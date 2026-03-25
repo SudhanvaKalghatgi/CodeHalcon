@@ -10,16 +10,18 @@ const formatReviewComments = (fileReviews) => {
     for (const issue of file.issues) {
       if (!issue.line || !issue.comment) continue
 
+      const sev = (issue.severity || "unknown").toString().toLowerCase()
+
       const severityEmoji = {
         critical: "🔴",
         warning: "🟡",
         suggestion: "🔵",
-      }[issue.severity] || "⚪"
+      }[sev] || "⚪"
 
       comments.push({
         path: file.filename,
         line: issue.line,
-        body: `${severityEmoji} **${issue.severity.toUpperCase()}${issue.title ? ` — ${issue.title}` : ""}**\n\n${issue.comment}`,
+        body: `${severityEmoji} **${sev.toUpperCase()}${issue.title ? ` — ${issue.title}` : ""}**\n\n${issue.comment}`,
       })
     }
   }
