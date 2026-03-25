@@ -1,12 +1,12 @@
 import { getInstallationClient } from "../github/github.service.js"
 import { parseDiff } from "./diff.parser.js"
-import { encoding_for_model } from "js-tiktoken"
+import { get_encoding } from "tiktoken"
 
 const MAX_TOKENS_PER_CHUNK = 3000
 
 // Count tokens in a string
 const countTokens = (text) => {
-  const enc = encoding_for_model("gpt-4")
+  const enc = get_encoding("cl100k_base")
   const tokens = enc.encode(text)
   enc.free()
   return tokens.length
@@ -41,12 +41,12 @@ export const fetchAndParseDiff = async (installationId, owner, repo, pullNumber)
   const octokit = await getInstallationClient(installationId)
 
   // Fetch raw diff from GitHub
-  const response = await octokit.rest.pulls.get({
+  const response = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
     owner,
     repo,
     pull_number: pullNumber,
-    mediaType: {
-      format: "diff",
+    headers: {
+      accept: "application/vnd.github.v3.diff",
     },
   })
 
@@ -63,7 +63,6 @@ export const fetchAndParseDiff = async (installationId, owner, repo, pullNumber)
     totalChanges: file.hunks.reduce((acc, h) => acc + h.changes.length, 0),
   }))
 
-  // Filter out files with no chunks
   const reviewableFiles = chunkedFiles.filter((f) => f.chunks.length > 0)
 
   return reviewableFiles
