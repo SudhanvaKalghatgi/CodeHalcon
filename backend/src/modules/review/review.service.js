@@ -37,10 +37,15 @@ const formatSummaryComment = (reviewResult) => {
     .map((f) => `| \`${f.filename}\` | ${f.score}/100 |`)
     .join("\n")
 
-  const issueBreakdown = {
-    critical: files.flatMap((f) => f.issues).filter((i) => i.severity === "critical").length,
-    warning: files.flatMap((f) => f.issues).filter((i) => i.severity === "warning").length,
-    suggestion: files.flatMap((f) => f.issues).filter((i) => i.severity === "suggestion").length,
+  // Flatten once and count in single pass
+  const allIssues = files.flatMap((f) => f.issues)
+  const issueBreakdown = { critical: 0, warning: 0, suggestion: 0 }
+
+  for (const issue of allIssues) {
+    const sev = issue.severity?.toLowerCase()
+    if (sev === "critical") issueBreakdown.critical++
+    else if (sev === "warning") issueBreakdown.warning++
+    else if (sev === "suggestion") issueBreakdown.suggestion++
   }
 
   return `## 🦅 CodeHalcon Review
@@ -73,6 +78,7 @@ ${
 *Reviewed by [CodeHalcon](https://github.com/SudhanvaKalghatgi/CodeHalcon) — AI powered code review*`
 }
 
+// _sha reserved for future commit-specific reviews
 export const orchestrateReview = async ({ installationId, owner, repo, pullNumber, _sha }) => {
   if (!installationId || !owner || !repo || !pullNumber) {
     throw new ApiError(400, "Missing required parameters for review orchestration")
@@ -92,15 +98,23 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
   }
 
   const reviewResult = await reviewPullRequest(parsedFiles)
-
   const reviewComments = formatReviewComments(reviewResult.files)
 
+  // Post inline comments and summary independently so partial failures are logged
   if (reviewComments.length > 0) {
-    await postReviewComment(installationId, owner, repo, pullNumber, reviewComments)
+    try {
+      await postReviewComment(installationId, owner, repo, pullNumber, reviewComments)
+    } catch (err) {
+      console.error("Failed to post inline review comments:", err.message)
+    }
   }
 
-  const summaryComment = formatSummaryComment(reviewResult)
-  await postSummaryComment(installationId, owner, repo, pullNumber, summaryComment)
+  try {
+    const summaryComment = formatSummaryComment(reviewResult)
+    await postSummaryComment(installationId, owner, repo, pullNumber, summaryComment)
+  } catch (err) {
+    console.error("Failed to post summary comment:", err.message)
+  }
 
   return {
     skipped: false,

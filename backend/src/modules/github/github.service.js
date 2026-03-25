@@ -27,7 +27,7 @@ export const getInstallationClient = async (installationId) => {
     const octokit = await app.getInstallationOctokit(installationId)
     return octokit
   } catch (err) {
-    throw new Error(`Failed to get installation client: ${err.message}`)
+    throw new Error(`Failed to get installation client: ${err.message}`, { cause: err })
   }
 }
 
@@ -42,7 +42,7 @@ export const postReviewComment = async (installationId, owner, repo, pullNumber,
       comments,
     })
   } catch (err) {
-    throw new Error(`Failed to post review comment: ${err.message}`)
+    throw new Error(`Failed to post review comment: ${err.message}`, { cause: err })
   }
 }
 
@@ -56,6 +56,6 @@ export const postSummaryComment = async (installationId, owner, repo, pullNumber
       body,
     })
   } catch (err) {
-    throw new Error(`Failed to post summary comment: ${err.message}`)
+    throw new Error(`Failed to post summary comment: ${err.message}`, { cause: err })
   }
 }
