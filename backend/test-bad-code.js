@@ -1,6 +1,6 @@
 const express = require("express")
 const db = require("./db")
-// trigger review
+// trigger 
 async function getUser(req, res) {
   const id = req.query.id
   const user = await db.query("SELECT * FROM users WHERE id = " + id)
