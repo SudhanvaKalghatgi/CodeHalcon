@@ -2,6 +2,7 @@ import crypto from "crypto"
 import { ApiResponse } from "../../utils/ApiResponse.js"
 import { ApiError } from "../../utils/ApiError.js"
 import { config } from "../../config/env.js"
+import { orchestrateReview } from "../review/review.service.js"
 
 const verifyWebhookSignature = (rawBody, signature) => {
   if (!signature) return false
@@ -25,6 +26,7 @@ export const handleWebhook = async (request, reply) => {
   const rawBody = request.rawBody
 
   if (!verifyWebhookSignature(rawBody, signature)) {
+    request.log.warn("Webhook signature verification failed")
     throw new ApiError(401, "Invalid webhook signature")
   }
 
@@ -61,14 +63,15 @@ export const handleWebhook = async (request, reply) => {
 
   const repoFullName = payload.repository.full_name
   const [owner, repo] = repoFullName.split("/")
-  const _installationId = payload.installation.id
+  const installationId = payload.installation.id
 
-  request.log.info(
-    { pullNumber, owner, repo, action, sha },
-    "PR event queued for review"
-  )
+  request.log.info({ pullNumber, owner, repo, action, sha }, "PR event received")
+
+  orchestrateReview({ installationId, owner, repo, pullNumber, sha }).catch((err) => {
+    request.log.error({ err, pullNumber, owner, repo }, "Review orchestration failed")
+  })
 
   return reply.send(
-    new ApiResponse(200, { pullNumber, owner, repo, action }, "PR queued for review")
+    new ApiResponse(200, { pullNumber, owner, repo, action }, "PR review started")
   )
 }
