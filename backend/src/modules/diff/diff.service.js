@@ -4,15 +4,13 @@ import { get_encoding } from "tiktoken"
 
 const MAX_TOKENS_PER_CHUNK = 3000
 
-// Count tokens in a string
+// Cache encoder at module scope — avoid recreating on every call
+const encoder = get_encoding("cl100k_base")
+
 const countTokens = (text) => {
-  const enc = get_encoding("cl100k_base")
-  const tokens = enc.encode(text)
-  enc.free()
-  return tokens.length
+  return encoder.encode(text).length
 }
 
-// Split hunks into token-safe chunks
 const chunkHunks = (hunks) => {
   const chunks = []
   let currentChunk = ""
@@ -36,11 +34,9 @@ const chunkHunks = (hunks) => {
   return chunks
 }
 
-// Fetch and parse PR diff
 export const fetchAndParseDiff = async (installationId, owner, repo, pullNumber) => {
   const octokit = await getInstallationClient(installationId)
 
-  // Fetch raw diff from GitHub
   const response = await octokit.request("GET /repos/{owner}/{repo}/pulls/{pull_number}", {
     owner,
     repo,
@@ -51,11 +47,8 @@ export const fetchAndParseDiff = async (installationId, owner, repo, pullNumber)
   })
 
   const rawDiff = response.data
-
-  // Parse into structured format
   const parsedFiles = parseDiff(rawDiff)
 
-  // Chunk each file's hunks into token-safe pieces
   const chunkedFiles = parsedFiles.map((file) => ({
     filename: file.filename,
     language: file.language,
@@ -63,7 +56,5 @@ export const fetchAndParseDiff = async (installationId, owner, repo, pullNumber)
     totalChanges: file.hunks.reduce((acc, h) => acc + h.changes.length, 0),
   }))
 
-  const reviewableFiles = chunkedFiles.filter((f) => f.chunks.length > 0)
-
-  return reviewableFiles
+  return chunkedFiles.filter((f) => f.chunks.length > 0)
 }
