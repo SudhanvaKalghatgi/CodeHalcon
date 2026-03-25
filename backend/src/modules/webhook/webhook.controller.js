@@ -2,7 +2,7 @@ import crypto from "crypto"
 import { ApiResponse } from "../../utils/ApiResponse.js"
 import { ApiError } from "../../utils/ApiError.js"
 import { config } from "../../config/env.js"
-import { reviewQueue } from "../../queues/index.js"
+import { orchestrateReview } from "../review/review.service.js"
 
 const verifyWebhookSignature = (rawBody, signature) => {
   if (!signature) return false
@@ -18,6 +18,30 @@ const verifyWebhookSignature = (rawBody, signature) => {
     )
   } catch {
     return false
+  }
+}
+
+const runReviewWithRetry = async (params, log, attempt = 1) => {
+  const MAX_ATTEMPTS = 3
+  const { owner, repo, pullNumber } = params
+
+  try {
+    log.info({ attempt, pullNumber, owner, repo }, "Review attempt started")
+    const result = await orchestrateReview(params)
+    log.info({ pullNumber, owner, repo, result }, "Review completed successfully")
+  } catch (err) {
+    log.error({ err, attempt, pullNumber, owner, repo }, "Review attempt failed")
+
+    if (attempt < MAX_ATTEMPTS) {
+      const delay = attempt * 5000
+      log.info({ delay, pullNumber }, `Retrying review in ${delay}ms`)
+      setTimeout(() => runReviewWithRetry(params, log, attempt + 1), delay)
+    } else {
+      log.error(
+        { pullNumber, owner, repo },
+        `Review permanently failed after ${MAX_ATTEMPTS} attempts`
+      )
+    }
   }
 }
 
@@ -65,21 +89,16 @@ export const handleWebhook = async (request, reply) => {
   const [owner, repo] = repoFullName.split("/")
   const installationId = payload.installation.id
 
-  // Add job to queue instead of running directly
-  const job = await reviewQueue.add("review-pr", {
-    installationId,
-    owner,
-    repo,
-    pullNumber,
-    sha,
+  request.log.info({ pullNumber, owner, repo, action, sha }, "PR review started")
+
+  setImmediate(() => {
+    runReviewWithRetry(
+      { installationId, owner, repo, pullNumber, sha },
+      request.log
+    )
   })
 
-  request.log.info(
-    { jobId: job.id, pullNumber, owner, repo, action },
-    "PR review job queued"
-  )
-
   return reply.send(
-    new ApiResponse(200, { jobId: job.id, pullNumber, owner, repo, action }, "PR review queued")
+    new ApiResponse(200, { pullNumber, owner, repo, action }, "PR review started")
   )
 }
