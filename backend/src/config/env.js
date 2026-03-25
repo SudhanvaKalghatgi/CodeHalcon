@@ -10,6 +10,7 @@ const requiredEnvVars = [
   "GITHUB_WEBHOOK_SECRET",
   "GROQ_API_KEY",
   "GROQ_MODEL",
+  "REDIS_URL",
 ]
 
 requiredEnvVars.forEach((key) => {
@@ -40,5 +41,8 @@ export const config = {
   groq: {
     apiKey: process.env.GROQ_API_KEY,
     model: process.env.GROQ_MODEL,
+  },
+  redis: {
+    url: process.env.REDIS_URL,
   },
 }
