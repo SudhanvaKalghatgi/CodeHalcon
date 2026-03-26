@@ -9,9 +9,6 @@ export const createConnection = () =>
     keepAlive: 5000,
     connectTimeout: 20000,
     commandTimeout: 10000,
-    retryStrategy: (times) => {
-      if (times > 10) return null
-      return Math.min(times * 200, 2000)
-    },
+    retryStrategy: (times) => Math.min(times * 200, 2000),
     reconnectOnError: () => true,
   })
