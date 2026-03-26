@@ -23,7 +23,7 @@ const processReviewJob = async (job) => {
 export const startReviewWorker = () => {
   const worker = new Worker("review", processReviewJob, {
     connection: createConnection(),
-    concurrency: 3,
+    concurrency: 1,
   })
 
   worker.on("completed", (job) => {
@@ -31,7 +31,11 @@ export const startReviewWorker = () => {
   })
 
   worker.on("failed", (job, err) => {
-    console.error(`❌ Review job ${job.id} failed:`, err.message)
+    if (job) {
+      console.error(`❌ Review job ${job.id} failed for ${job.data.owner}/${job.data.repo}#${job.data.pullNumber}:`, err.message)
+    } else {
+      console.error("❌ Review job failed (job data unavailable):", err.message)
+    }
   })
 
   worker.on("error", (err) => {
