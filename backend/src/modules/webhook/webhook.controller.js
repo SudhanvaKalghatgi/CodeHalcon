@@ -21,6 +21,30 @@ const verifyWebhookSignature = (rawBody, signature) => {
   }
 }
 
+const runReviewWithRetry = async (params, log, attempt = 1) => {
+  const MAX_ATTEMPTS = 3
+  const { owner, repo, pullNumber } = params
+
+  try {
+    log.info({ attempt, pullNumber, owner, repo }, "Review attempt started")
+    const result = await orchestrateReview(params)
+    log.info({ pullNumber, owner, repo, result }, "Review completed successfully")
+  } catch (err) {
+    log.error({ err, attempt, pullNumber, owner, repo }, "Review attempt failed")
+
+    if (attempt < MAX_ATTEMPTS) {
+      const delay = attempt * 5000
+      log.info({ delay, pullNumber }, `Retrying review in ${delay}ms`)
+      setTimeout(() => runReviewWithRetry(params, log, attempt + 1), delay)
+    } else {
+      log.error(
+        { pullNumber, owner, repo },
+        `Review permanently failed after ${MAX_ATTEMPTS} attempts`
+      )
+    }
+  }
+}
+
 export const handleWebhook = async (request, reply) => {
   const signature = request.headers["x-hub-signature-256"]
   const rawBody = request.rawBody
@@ -65,10 +89,13 @@ export const handleWebhook = async (request, reply) => {
   const [owner, repo] = repoFullName.split("/")
   const installationId = payload.installation.id
 
-  request.log.info({ pullNumber, owner, repo, action, sha }, "PR event received")
+  request.log.info({ pullNumber, owner, repo, action, sha }, "PR review started")
 
-  orchestrateReview({ installationId, owner, repo, pullNumber, sha }).catch((err) => {
-    request.log.error({ err, pullNumber, owner, repo }, "Review orchestration failed")
+  setImmediate(() => {
+    runReviewWithRetry(
+      { installationId, owner, repo, pullNumber, sha },
+      request.log
+    )
   })
 
   return reply.send(
