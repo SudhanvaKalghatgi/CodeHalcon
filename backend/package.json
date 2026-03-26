@@ -20,7 +20,6 @@
     "fastify-raw-body": "^4.3.0",
     "groq-sdk": "^1.1.1",
     "ioredis": "^5.10.1",
-    "js-tiktoken": "^1.0.21",
     "tiktoken": "^1.0.22"
   },
   "devDependencies": {
