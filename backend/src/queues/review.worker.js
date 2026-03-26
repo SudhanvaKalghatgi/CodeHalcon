@@ -1,22 +1,6 @@
 import { Worker } from "bullmq"
-import IORedis from "ioredis"
-import { config } from "../config/env.js"
+import { createConnection } from "./connection.js"
 import { orchestrateReview } from "../modules/review/review.service.js"
-
-const createConnection = () =>
-  new IORedis(config.redis.url, {
-    maxRetriesPerRequest: null,
-    enableReadyCheck: false,
-    lazyConnect: false,
-    keepAlive: 5000,
-    connectTimeout: 20000,
-    commandTimeout: 10000,
-    retryStrategy: (times) => {
-      if (times > 10) return null
-      return Math.min(times * 200, 2000)
-    },
-    reconnectOnError: () => true,
-  })
 
 const processReviewJob = async (job) => {
   const { installationId, owner, repo, pullNumber, sha } = job.data
