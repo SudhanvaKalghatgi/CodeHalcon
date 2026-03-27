@@ -1,6 +1,8 @@
 import { fetchAndParseDiff } from "../diff/diff.service.js"
 import { reviewPullRequest } from "../llm/llm.service.js"
 import { postReviewComment, postSummaryComment } from "../github/github.service.js"
+import { upsertRepository } from "../../db/queries/repositories.js"
+import { createPullRequest, createReview, createReviewIssues } from "../../db/queries/reviews.js"
 import { ApiError } from "../../utils/ApiError.js"
 
 const formatReviewComments = (fileReviews) => {
@@ -37,7 +39,6 @@ const formatSummaryComment = (reviewResult) => {
     .map((f) => `| \`${f.filename}\` | ${f.score}/100 |`)
     .join("\n")
 
-  // Flatten once and count in single pass
   const allIssues = files.flatMap((f) => f.issues)
   const issueBreakdown = { critical: 0, warning: 0, suggestion: 0 }
 
@@ -84,9 +85,17 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
     throw new ApiError(400, "Missing required parameters for review orchestration")
   }
 
+  // Step 1 — Upsert repository
+  const repository = await upsertRepository(installationId, owner, repo)
+
+  // Step 2 — Fetch and parse diff
   const parsedFiles = await fetchAndParseDiff(installationId, owner, repo, pullNumber)
 
   if (parsedFiles.length === 0) {
+    // Save skipped review to DB
+    const pr = await createPullRequest(repository.id, pullNumber, _sha || "unknown", null, "skipped")
+    await createReview(pr.id, { skipped: true })
+
     await postSummaryComment(
       installationId,
       owner,
@@ -97,10 +106,31 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
     return { skipped: true }
   }
 
+  // Step 3 — Run LLM review
   const reviewResult = await reviewPullRequest(parsedFiles)
+
+  // Step 4 — Save to database
+  const pr = await createPullRequest(repository.id, pullNumber, _sha || "unknown", null, "reviewed")
+
+  const allIssues = reviewResult.files.flatMap((f) => f.issues)
+  const warningCount = allIssues.filter((i) => i.severity?.toLowerCase() === "warning").length
+  const suggestionCount = allIssues.filter((i) => i.severity?.toLowerCase() === "suggestion").length
+
+  const review = await createReview(pr.id, {
+    totalIssues: reviewResult.totalIssues,
+    criticalCount: reviewResult.criticalCount,
+    warningCount,
+    suggestionCount,
+    filesReviewed: parsedFiles.length,
+    overallSummary: reviewResult.overallSummary,
+    skipped: false,
+  })
+
+  await createReviewIssues(review.id, reviewResult.files)
+
+  // Step 5 — Post inline comments
   const reviewComments = formatReviewComments(reviewResult.files)
 
-  // Post inline comments and summary independently so partial failures are logged
   if (reviewComments.length > 0) {
     try {
       await postReviewComment(installationId, owner, repo, pullNumber, reviewComments)
@@ -109,6 +139,7 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
     }
   }
 
+  // Step 6 — Post summary comment
   try {
     const summaryComment = formatSummaryComment(reviewResult)
     await postSummaryComment(installationId, owner, repo, pullNumber, summaryComment)
