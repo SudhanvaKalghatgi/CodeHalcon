@@ -43,6 +43,15 @@ export const createReview = async (pullRequestId, reviewData) => {
       ${overallSummary || null},
       ${skipped || false}
     )
+    ON CONFLICT (pull_request_id)
+    DO UPDATE SET
+      total_issues = EXCLUDED.total_issues,
+      critical_count = EXCLUDED.critical_count,
+      warning_count = EXCLUDED.warning_count,
+      suggestion_count = EXCLUDED.suggestion_count,
+      files_reviewed = EXCLUDED.files_reviewed,
+      overall_summary = EXCLUDED.overall_summary,
+      skipped = EXCLUDED.skipped
     RETURNING *
   `
   return review
@@ -52,15 +61,17 @@ export const createReviewIssues = async (reviewId, files) => {
   if (!files || files.length === 0) return []
 
   const issues = files.flatMap((file) =>
-    file.issues.map((issue) => ({
-      review_id: reviewId,
-      filename: file.filename,
-      line_number: issue.line || null,
-      severity: issue.severity || "suggestion",
-      title: issue.title || null,
-      comment: issue.comment,
-      language: file.language || null,
-    }))
+    file.issues
+      .filter((issue) => issue.comment)
+      .map((issue) => ({
+        review_id: reviewId,
+        filename: file.filename,
+        line_number: issue.line || null,
+        severity: issue.severity || "suggestion",
+        title: issue.title || null,
+        comment: issue.comment,
+        language: file.language || null,
+      }))
   )
 
   if (issues.length === 0) return []

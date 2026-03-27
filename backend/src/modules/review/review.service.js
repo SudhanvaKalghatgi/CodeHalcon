@@ -4,6 +4,7 @@ import { postReviewComment, postSummaryComment } from "../github/github.service.
 import { upsertRepository } from "../../db/queries/repositories.js"
 import { createPullRequest, createReview, createReviewIssues } from "../../db/queries/reviews.js"
 import { ApiError } from "../../utils/ApiError.js"
+import sql from "../../db/index.js"
 
 const formatReviewComments = (fileReviews) => {
   const comments = []
@@ -79,8 +80,7 @@ ${
 *Reviewed by [CodeHalcon](https://github.com/SudhanvaKalghatgi/CodeHalcon) — AI powered code review*`
 }
 
-// _sha reserved for future commit-specific reviews
-export const orchestrateReview = async ({ installationId, owner, repo, pullNumber, _sha }) => {
+export const orchestrateReview = async ({ installationId, owner, repo, pullNumber, sha }) => {
   if (!installationId || !owner || !repo || !pullNumber) {
     throw new ApiError(400, "Missing required parameters for review orchestration")
   }
@@ -92,9 +92,22 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
   const parsedFiles = await fetchAndParseDiff(installationId, owner, repo, pullNumber)
 
   if (parsedFiles.length === 0) {
-    // Save skipped review to DB
-    const pr = await createPullRequest(repository.id, pullNumber, _sha || "unknown", null, "skipped")
-    await createReview(pr.id, { skipped: true })
+    // Atomic transaction for skipped review
+    await sql.begin(async (trx) => {
+      const [pr] = await trx`
+        INSERT INTO pull_requests (repo_id, pull_number, sha, title, action)
+        VALUES (${repository.id}, ${pullNumber}, ${sha || "unknown"}, ${null}, ${"skipped"})
+        ON CONFLICT (repo_id, pull_number, sha)
+        DO UPDATE SET action = EXCLUDED.action
+        RETURNING *
+      `
+      await trx`
+        INSERT INTO reviews (pull_request_id, skipped)
+        VALUES (${pr.id}, ${true})
+        ON CONFLICT (pull_request_id)
+        DO UPDATE SET skipped = EXCLUDED.skipped
+      `
+    })
 
     await postSummaryComment(
       installationId,
@@ -110,7 +123,7 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
   const reviewResult = await reviewPullRequest(parsedFiles)
 
   // Step 4 — Save to database
-  const pr = await createPullRequest(repository.id, pullNumber, _sha || "unknown", null, "reviewed")
+  const pr = await createPullRequest(repository.id, pullNumber, sha || "unknown", null, "reviewed")
 
   const allIssues = reviewResult.files.flatMap((f) => f.issues)
   const warningCount = allIssues.filter((i) => i.severity?.toLowerCase() === "warning").length
