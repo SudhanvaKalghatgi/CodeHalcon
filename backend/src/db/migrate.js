@@ -15,12 +15,13 @@ const runMigrations = async () => {
     )
 
     await sql.unsafe(migration)
-
     console.log("✅ Migrations completed successfully")
-    process.exit(0)
   } catch (err) {
     console.error("❌ Migration failed:", err.message)
     process.exit(1)
+  } finally {
+    await sql.end()
+    process.exit(0)
   }
 }
 
