@@ -3,6 +3,13 @@ import { ApiResponse } from "../../utils/ApiResponse.js"
 import { ApiError } from "../../utils/ApiError.js"
 import { config } from "../../config/env.js"
 import { orchestrateReview } from "../review/review.service.js"
+import {
+  recordReviewStarted,
+  recordReviewCompleted,
+  recordReviewFailed,
+  recordReviewSkipped,
+  recordWebhookIgnored,
+} from "../../utils/metrics.js"
 
 const verifyWebhookSignature = (rawBody, signature) => {
   if (!signature) return false
@@ -25,9 +32,19 @@ const runReviewWithRetry = async (params, log, attempt = 1) => {
   const MAX_ATTEMPTS = 3
   const { owner, repo, pullNumber } = params
 
+  // Record start once before retry loop
+  const startTime = attempt === 1 ? recordReviewStarted() : null
+
   try {
     log.info({ attempt, pullNumber, owner, repo }, "Review attempt started")
     const result = await orchestrateReview(params)
+
+    if (result.skipped) {
+      recordReviewSkipped()
+    } else {
+      recordReviewCompleted(startTime || Date.now())
+    }
+
     log.info({ pullNumber, owner, repo, result }, "Review completed successfully")
   } catch (err) {
     log.error({ err, attempt, pullNumber, owner, repo }, "Review attempt failed")
@@ -37,6 +54,7 @@ const runReviewWithRetry = async (params, log, attempt = 1) => {
       log.info({ delay, pullNumber }, `Retrying review in ${delay}ms`)
       setTimeout(() => runReviewWithRetry(params, log, attempt + 1), delay)
     } else {
+      recordReviewFailed()
       log.error(
         { pullNumber, owner, repo },
         `Review permanently failed after ${MAX_ATTEMPTS} attempts`
@@ -64,6 +82,7 @@ export const handleWebhook = async (request, reply) => {
   }
 
   if (event !== "pull_request") {
+    recordWebhookIgnored()
     return reply.send(new ApiResponse(200, null, "Event ignored"))
   }
 
@@ -75,6 +94,7 @@ export const handleWebhook = async (request, reply) => {
   const relevantActions = ["opened", "synchronize", "reopened"]
 
   if (!relevantActions.includes(action)) {
+    recordWebhookIgnored()
     return reply.send(new ApiResponse(200, null, "Action ignored"))
   }
 
