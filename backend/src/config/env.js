@@ -21,6 +21,13 @@ requiredEnvVars.forEach((key) => {
   }
 })
 
+// Validate API key strength
+const apiKey = process.env.API_SECRET_KEY
+if (apiKey.length < 32) {
+  console.error("❌ API_SECRET_KEY must be at least 32 characters long")
+  process.exit(1)
+}
+
 const loadPrivateKey = () => {
   try {
     return readFileSync(process.env.GITHUB_PRIVATE_KEY_PATH, "utf8")
