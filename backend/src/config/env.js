@@ -12,6 +12,7 @@ const requiredEnvVars = [
   "GROQ_MODEL",
   "REDIS_URL",
   "DATABASE_URL",
+  "API_SECRET_KEY",
 ]
 
 requiredEnvVars.forEach((key) => {
@@ -19,6 +20,13 @@ requiredEnvVars.forEach((key) => {
     throw new Error(`Missing required environment variable: ${key}`)
   }
 })
+
+// Validate API key strength
+const apiKey = process.env.API_SECRET_KEY
+if (apiKey.length < 32) {
+  console.error("❌ API_SECRET_KEY must be at least 32 characters long")
+  process.exit(1)
+}
 
 const loadPrivateKey = () => {
   try {
@@ -49,4 +57,5 @@ export const config = {
   db: {
     url: process.env.DATABASE_URL,
   },
+  apiSecretKey: process.env.API_SECRET_KEY,
 }
