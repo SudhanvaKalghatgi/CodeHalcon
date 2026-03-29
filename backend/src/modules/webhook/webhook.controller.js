@@ -7,6 +7,7 @@ import {
   recordReviewStarted,
   recordReviewCompleted,
   recordReviewFailed,
+  recordReviewSkipped,
   recordWebhookIgnored,
 } from "../../utils/metrics.js"
 
@@ -31,12 +32,19 @@ const runReviewWithRetry = async (params, log, attempt = 1) => {
   const MAX_ATTEMPTS = 3
   const { owner, repo, pullNumber } = params
 
-  const startTime = recordReviewStarted()
+  // Record start once before retry loop
+  const startTime = attempt === 1 ? recordReviewStarted() : null
 
   try {
     log.info({ attempt, pullNumber, owner, repo }, "Review attempt started")
     const result = await orchestrateReview(params)
-    recordReviewCompleted(startTime)
+
+    if (result.skipped) {
+      recordReviewSkipped()
+    } else {
+      recordReviewCompleted(startTime || Date.now())
+    }
+
     log.info({ pullNumber, owner, repo, result }, "Review completed successfully")
   } catch (err) {
     log.error({ err, attempt, pullNumber, owner, repo }, "Review attempt failed")
