@@ -76,10 +76,13 @@ export const createReviewIssues = async (reviewId, files) => {
 
   if (issues.length === 0) return []
 
-  const inserted = await sql`
-    INSERT INTO review_issues ${sql(issues)}
-    RETURNING *
-  `
+  // Delete existing issues for this review then reinsert — idempotent on retry
+  const inserted = await sql.begin(async (trx) => {
+    await trx`DELETE FROM review_issues WHERE review_id = ${reviewId}`
+    const rows = await trx`INSERT INTO review_issues ${trx(issues)} RETURNING *`
+    return rows
+  })
+
   return inserted
 }
 
