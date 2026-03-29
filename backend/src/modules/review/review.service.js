@@ -84,6 +84,8 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
     throw new ApiError(400, "Missing required parameters for review orchestration")
   }
 
+  const reviewStartTime = Date.now()
+
   // Step 1 — Upsert repository
   const repository = await upsertRepository(installationId, owner, repo)
 
@@ -205,6 +207,20 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
   } catch (err) {
     console.error("Failed to post summary comment:", err.message)
   }
+
+  const reviewLatency = Date.now() - reviewStartTime
+
+  console.log(JSON.stringify({
+    level: "info",
+    event: "review_completed",
+    owner,
+    repo,
+    pullNumber,
+    latencyMs: reviewLatency,
+    totalIssues: reviewResult.totalIssues,
+    criticalCount: reviewResult.criticalCount,
+    filesReviewed: parsedFiles.length,
+  }))
 
   return {
     skipped: false,
