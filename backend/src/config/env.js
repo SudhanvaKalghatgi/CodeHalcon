@@ -11,6 +11,7 @@ const requiredEnvVars = [
   "GROQ_API_KEY",
   "GROQ_MODEL",
   "REDIS_URL",
+  "DATABASE_URL",
 ]
 
 requiredEnvVars.forEach((key) => {
@@ -44,5 +45,8 @@ export const config = {
   },
   redis: {
     url: process.env.REDIS_URL,
+  },
+  db: {
+    url: process.env.DATABASE_URL,
   },
 }
