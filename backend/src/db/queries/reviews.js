@@ -138,3 +138,19 @@ export const getAllReviews = async (limit = 50) => {
   `
   return reviews
 }
+
+export const getGlobalStats = async () => {
+  const [stats] = await sql`
+    SELECT
+      COUNT(DISTINCT rep.id) as total_repositories,
+      COUNT(DISTINCT r.id) as total_reviews,
+      COALESCE(SUM(r.total_issues), 0) as total_issues,
+      COALESCE(SUM(r.critical_count), 0) as total_critical,
+      COALESCE(SUM(r.warning_count), 0) as total_warnings,
+      COALESCE(SUM(r.suggestion_count), 0) as total_suggestions
+    FROM repositories rep
+    LEFT JOIN pull_requests pr ON pr.repo_id = rep.id
+    LEFT JOIN reviews r ON r.pull_request_id = pr.id
+  `
+  return stats
+}

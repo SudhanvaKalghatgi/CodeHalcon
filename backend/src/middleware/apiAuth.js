@@ -1,5 +1,17 @@
+import crypto from "crypto"
 import { ApiError } from "../utils/ApiError.js"
 import { config } from "../config/env.js"
+
+const constantTimeEquals = (a, b) => {
+  try {
+    return crypto.timingSafeEqual(
+      Buffer.from(a),
+      Buffer.from(b)
+    )
+  } catch {
+    return false
+  }
+}
 
 export const apiAuth = async (request, _reply) => {
   const authHeader = request.headers["authorization"]
@@ -10,7 +22,7 @@ export const apiAuth = async (request, _reply) => {
 
   const token = authHeader.split(" ")[1]
 
-  if (token !== config.apiSecretKey) {
+  if (!constantTimeEquals(token, config.apiSecretKey)) {
     throw new ApiError(401, "Invalid API key")
   }
 }
