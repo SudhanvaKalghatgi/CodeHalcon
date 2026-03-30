@@ -1,4 +1,3 @@
-// Escape special regex characters including '?'
 const escapeRegex = (str) =>
   str.replace(/[.+^${}()|[\]\\?]/g, "\\$&")
 
@@ -9,12 +8,16 @@ const globToRegex = (pattern) => {
     normalized = `**/${pattern}`
   }
 
-  const escaped = escapeRegex(normalized)
-    .replace(/\\\*/g, "STAR")
-    .replace(/STARSTAR\//g, "(?:.+/)?")
-    .replace(/STAR/g, "[^/]*")
+  // Split on ** first, then handle * within each segment
+  const parts = normalized.split("**")
+  const escapedParts = parts.map((part) => {
+    return part.split("*").map(escapeRegex).join("[^/]*")
+  })
 
-  return new RegExp(`^${escaped}$`)
+  // ** joins become .* (match anything including slashes)
+  const regexStr = escapedParts.join(".*")
+
+  return new RegExp(`^${regexStr}$`)
 }
 
 export const shouldIgnoreByConfig = (filename, ignorePatterns = []) => {
