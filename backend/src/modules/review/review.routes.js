@@ -6,23 +6,37 @@ import {
   getDashboardStats,
 } from "./review.controller.js"
 import { apiAuth } from "../../middleware/apiAuth.js"
-
+//review
 export default async function reviewRoutes(fastify, _options) {
-  // All routes require API key auth
   fastify.addHook("preHandler", apiAuth)
 
   // Dashboard stats
-  fastify.get("/dashboard", getDashboardStats)
+  fastify.get("/dashboard", {
+    config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+    handler: getDashboardStats,
+  })
 
   // All repositories
-  fastify.get("/repositories", getRepositories)
+  fastify.get("/repositories", {
+    config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+    handler: getRepositories,
+  })
 
   // All reviews
-  fastify.get("/reviews", getReviews)
+  fastify.get("/reviews", {
+    config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+    handler: getReviews,
+  })
 
   // Reviews for a specific repo
-  fastify.get("/repos/:owner/:repo/reviews", getRepoReviews)
+  fastify.get("/repos/:owner/:repo/reviews", {
+    config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+    handler: getRepoReviews,
+  })
 
   // Stats for a specific repo
-  fastify.get("/repos/:owner/:repo/stats", getRepoStats)
+  fastify.get("/repos/:owner/:repo/stats", {
+    config: { rateLimit: { max: 60, timeWindow: "1 minute" } },
+    handler: getRepoStats,
+  })
 }
