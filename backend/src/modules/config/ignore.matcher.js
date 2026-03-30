@@ -1,8 +1,15 @@
-// Simple glob matcher for ignore patterns
-const escapeRegex = (str) => str.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+// Escape special regex characters including '?'
+const escapeRegex = (str) =>
+  str.replace(/[.+^${}()|[\]\\?]/g, "\\$&")
 
 const globToRegex = (pattern) => {
-  const escaped = escapeRegex(pattern)
+  // Auto-prefix bare patterns (no '/' or '**') to match in any subdirectory
+  let normalized = pattern
+  if (!pattern.includes("/") && !pattern.includes("**")) {
+    normalized = `**/${pattern}`
+  }
+
+  const escaped = escapeRegex(normalized)
     .replace(/\\\*/g, "STAR")
     .replace(/STARSTAR\//g, "(?:.+/)?")
     .replace(/STAR/g, "[^/]*")

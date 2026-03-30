@@ -18,16 +18,19 @@ export const validateConfig = (raw) => {
     config.review.min_severity = review.min_severity
   }
 
-  // Validate focus
+  // Validate focus — only assign if filtered result is non-empty
   if (Array.isArray(review.focus) && review.focus.length > 0) {
-    config.review.focus = review.focus.filter((f) => VALID_FOCUS.includes(f))
+    const filtered = review.focus.filter((f) => VALID_FOCUS.includes(f))
+    if (filtered.length > 0) {
+      config.review.focus = filtered
+    }
   }
 
   // Validate ignore patterns
   if (Array.isArray(review.ignore)) {
     config.review.ignore = review.ignore
       .filter((p) => typeof p === "string")
-      .slice(0, 50) // max 50 patterns
+      .slice(0, 50)
   }
 
   // Validate fail_on_critical
