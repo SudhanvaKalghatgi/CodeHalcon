@@ -2,14 +2,14 @@
   "name": "codehalcon-backend",
   "version": "1.0.0",
   "type": "module",
-"scripts": {
-  "dev": "nodemon src/server.js",
-  "start": "node src/server.js",
-  "migrate": "node src/db/migrate.js",
-  "lint": "eslint src/",
-  "lint:fix": "eslint src/ --fix",
-  "format": "prettier --write src/"
-},
+  "scripts": {
+    "dev": "nodemon src/server.js",
+    "start": "node src/server.js",
+    "migrate": "node src/db/migrate.js",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/"
+  },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
     "@fastify/helmet": "^11.1.1",
@@ -21,6 +21,7 @@
     "fastify-raw-body": "^4.3.0",
     "groq-sdk": "^1.1.1",
     "ioredis": "^5.10.1",
+    "js-yaml": "^4.1.1",
     "postgres": "^3.4.8",
     "tiktoken": "^1.0.22"
   },
