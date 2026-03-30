@@ -2,6 +2,8 @@ import { fetchAndParseDiff } from "../diff/diff.service.js"
 import { reviewPullRequest } from "../llm/llm.service.js"
 import { postReviewComment, postSummaryComment } from "../github/github.service.js"
 import { upsertRepository } from "../../db/queries/repositories.js"
+import { fetchRepoConfig } from "../config/config.service.js"
+import { shouldIgnoreByConfig } from "../config/ignore.matcher.js"
 import { ApiError } from "../../utils/ApiError.js"
 import sql from "../../db/index.js"
 
@@ -89,10 +91,18 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
   // Step 1 — Upsert repository
   const repository = await upsertRepository(installationId, owner, repo)
 
+  // Step 1.5 — Fetch repo config
+  const repoConfig = await fetchRepoConfig(installationId, owner, repo)
+
   // Step 2 — Fetch and parse diff
   const parsedFiles = await fetchAndParseDiff(installationId, owner, repo, pullNumber)
 
-  if (parsedFiles.length === 0) {
+  // Apply config filters — ignore patterns and max files
+  const reviewableFiles = parsedFiles
+    .filter((f) => !shouldIgnoreByConfig(f.filename, repoConfig.review.ignore))
+    .slice(0, repoConfig.review.max_files)
+
+  if (reviewableFiles.length === 0) {
     await sql.begin(async (trx) => {
       const [pr] = await trx`
         INSERT INTO pull_requests (repo_id, pull_number, sha, title, action)
@@ -119,8 +129,8 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
     return { skipped: true }
   }
 
-  // Step 3 — Run LLM review
-  const reviewResult = await reviewPullRequest(parsedFiles)
+  // Step 3 — Run LLM review with repo config
+  const reviewResult = await reviewPullRequest(reviewableFiles, repoConfig)
 
   // Step 4 — Save to database in a single transaction
   await sql.begin(async (trx) => {
@@ -153,7 +163,7 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
         ${reviewResult.criticalCount || 0},
         ${warningCount},
         ${suggestionCount},
-        ${parsedFiles.length},
+        ${reviewableFiles.length},
         ${reviewResult.overallSummary || null},
         ${false}
       )
@@ -219,13 +229,13 @@ export const orchestrateReview = async ({ installationId, owner, repo, pullNumbe
     latencyMs: reviewLatency,
     totalIssues: reviewResult.totalIssues,
     criticalCount: reviewResult.criticalCount,
-    filesReviewed: parsedFiles.length,
+    filesReviewed: reviewableFiles.length,
   }))
 
   return {
     skipped: false,
     totalIssues: reviewResult.totalIssues,
     criticalCount: reviewResult.criticalCount,
-    filesReviewed: parsedFiles.length,
+    filesReviewed: reviewableFiles.length,
   }
 }
