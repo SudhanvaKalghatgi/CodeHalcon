@@ -5,7 +5,7 @@ export default async function webhookRoutes(fastify, _options) {
     config: {
       rawBody: true,
       rateLimit: {
-        max: 50,
+        max: 500,
         timeWindow: "1 minute",
       },
     },
