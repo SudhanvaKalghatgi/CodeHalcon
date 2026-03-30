@@ -1,4 +1,3 @@
-// Escape special regex characters including '?'
 const escapeRegex = (str) =>
   str.replace(/[.+^${}()|[\]\\?]/g, "\\$&")
 
@@ -9,12 +8,17 @@ const globToRegex = (pattern) => {
     normalized = `**/${pattern}`
   }
 
-  const escaped = escapeRegex(normalized)
-    .replace(/\\\*/g, "STAR")
-    .replace(/STARSTAR\//g, "(?:.+/)?")
-    .replace(/STAR/g, "[^/]*")
+  // Replace **/ with a placeholder for optional directory prefix
+  // Then replace remaining ** with .*
+  // Then replace * with [^/]*
+  const regexStr = normalized
+    .split("**/").map((segment) => {
+      // Within each segment, escape then handle single *
+      return segment.split("*").map(escapeRegex).join("[^/]*")
+    })
+    .join("(?:.*/)?")
 
-  return new RegExp(`^${escaped}$`)
+  return new RegExp(`^${regexStr}$`)
 }
 
 export const shouldIgnoreByConfig = (filename, ignorePatterns = []) => {
