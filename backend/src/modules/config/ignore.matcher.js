@@ -8,14 +8,15 @@ const globToRegex = (pattern) => {
     normalized = `**/${pattern}`
   }
 
-  // Split on ** first, then handle * within each segment
-  const parts = normalized.split("**")
-  const escapedParts = parts.map((part) => {
-    return part.split("*").map(escapeRegex).join("[^/]*")
-  })
-
-  // ** joins become .* (match anything including slashes)
-  const regexStr = escapedParts.join(".*")
+  // Replace **/ with a placeholder for optional directory prefix
+  // Then replace remaining ** with .*
+  // Then replace * with [^/]*
+  const regexStr = normalized
+    .split("**/").map((segment) => {
+      // Within each segment, escape then handle single *
+      return segment.split("*").map(escapeRegex).join("[^/]*")
+    })
+    .join("(?:.*/)?")
 
   return new RegExp(`^${regexStr}$`)
 }

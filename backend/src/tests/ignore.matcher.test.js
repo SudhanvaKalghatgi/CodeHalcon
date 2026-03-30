@@ -10,9 +10,17 @@ describe("shouldIgnoreByConfig", () => {
     expect(shouldIgnoreByConfig("src/index.js", ["**/index.js"])).toBe(true)
   })
 
+  it("matches root level files with **/ prefix", () => {
+    expect(shouldIgnoreByConfig("index.js", ["**/index.js"])).toBe(true)
+  })
+
   it("matches by extension glob", () => {
     expect(shouldIgnoreByConfig("src/auth.test.js", ["**/*.test.js"])).toBe(true)
     expect(shouldIgnoreByConfig("src/auth.spec.js", ["**/*.spec.js"])).toBe(true)
+  })
+
+  it("matches root level test files", () => {
+    expect(shouldIgnoreByConfig("auth.test.js", ["**/*.test.js"])).toBe(true)
   })
 
   it("does not match non-matching files", () => {
@@ -21,6 +29,10 @@ describe("shouldIgnoreByConfig", () => {
 
   it("matches bare filename patterns in any directory", () => {
     expect(shouldIgnoreByConfig("src/package-lock.json", ["package-lock.json"])).toBe(true)
+  })
+
+  it("matches bare filename at root level", () => {
+    expect(shouldIgnoreByConfig("package-lock.json", ["package-lock.json"])).toBe(true)
   })
 
   it("matches directory patterns", () => {
