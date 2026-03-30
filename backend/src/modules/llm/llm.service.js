@@ -49,14 +49,14 @@ const parseReviewResponse = (content) => {
   }
 }
 
-const reviewChunk = async (filename, language, chunk, attempt = 1) => {
+const reviewChunk = async (filename, language, chunk, repoConfig, attempt = 1) => {
   try {
     const response = await groq.chat.completions.create({
       model: config.groq.model,
       messages: [
         {
           role: "system",
-          content: buildSystemPrompt(),
+          content: buildSystemPrompt(repoConfig),
         },
         {
           role: "user",
@@ -77,7 +77,7 @@ const reviewChunk = async (filename, language, chunk, attempt = 1) => {
   } catch (err) {
     if (attempt < MAX_RETRIES && isTransientError(err)) {
       await sleep(RETRY_DELAY_MS * attempt)
-      return reviewChunk(filename, language, chunk, attempt + 1)
+      return reviewChunk(filename, language, chunk, repoConfig, attempt + 1)
     }
     throw new ApiError(
       500,
@@ -86,11 +86,11 @@ const reviewChunk = async (filename, language, chunk, attempt = 1) => {
   }
 }
 
-const reviewFile = async (file) => {
+const reviewFile = async (file, repoConfig) => {
   const chunkResults = []
 
   for (const chunk of file.chunks) {
-    const result = await reviewChunk(file.filename, file.language, chunk)
+    const result = await reviewChunk(file.filename, file.language, chunk, repoConfig)
     chunkResults.push(result)
   }
 
@@ -111,7 +111,7 @@ const reviewFile = async (file) => {
   }
 }
 
-export const reviewPullRequest = async (parsedFiles) => {
+export const reviewPullRequest = async (parsedFiles, repoConfig = null) => {
   if (!parsedFiles || parsedFiles.length === 0) {
     return {
       files: [],
@@ -123,7 +123,7 @@ export const reviewPullRequest = async (parsedFiles) => {
   const fileReviews = []
 
   for (const file of parsedFiles) {
-    const review = await reviewFile(file)
+    const review = await reviewFile(file, repoConfig)
     fileReviews.push(review)
   }
 
