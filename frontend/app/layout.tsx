@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import BottomNav from '@/components/BottomNav';
 import AISystemBackground from '@/components/AISystemBackground';
+import AuthProvider from '@/components/AuthProvider';
 
 const inter = Inter({
   variable: '--font-inter',
@@ -53,10 +54,12 @@ export default function RootLayout({
           <AISystemBackground />
 
           {/* Content Wrapper */}
-          <div className="relative z-10 flex flex-col min-h-screen">
-            {children}
-            <BottomNav />
-          </div>
+          <AuthProvider>
+            <div className="relative z-10 flex flex-col min-h-screen">
+              {children}
+              <BottomNav />
+            </div>
+          </AuthProvider>
 
         </div>
 
