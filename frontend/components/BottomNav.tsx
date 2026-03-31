@@ -2,8 +2,12 @@
 
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 
 export default function BottomNav() {
+  const pathname = usePathname();
+  const { data: session } = useSession();
   const navRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -48,6 +52,11 @@ export default function BottomNav() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Hide nav on dashboard or auth routes
+  if (pathname?.startsWith('/dashboard') || pathname?.startsWith('/auth')) {
+    return null;
+  }
+
   return (
     <nav
       ref={navRef}
@@ -78,10 +87,10 @@ export default function BottomNav() {
           Install App
         </Link>
         <Link 
-          href="/auth/signin" 
+          href={session ? "/dashboard" : "/auth/signin"}
           className="bottom-nav-link text-[#C9A84C] font-semibold hover:text-[#C9A84C] hover:drop-shadow-[0_0_8px_rgba(201,168,76,0.6)] transition-all ml-2"
         >
-          Sign in
+          {session ? "Dashboard" : "Sign in"}
         </Link>
       </div>
     </nav>
