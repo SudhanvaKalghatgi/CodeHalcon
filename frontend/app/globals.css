@@ -1,0 +1,292 @@
+@import "tailwindcss";
+
+:root {
+  --background: #000000;
+  --foreground: #ededed;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-inter);
+}
+
+/* ── Base ───────────────────────────────────────────── */
+
+html {
+  background: #000;
+  overflow-x: hidden;
+  /* Smooth scroll for programmatic scrolling only, not for scroll-driven animation */
+}
+
+body {
+  background: #000;
+  color: var(--foreground);
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Hide scrollbar for cleaner cinematic feel */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* ── Canvas container ────────────────────────────────── */
+
+canvas {
+  display: block;
+  image-rendering: auto;
+}
+
+/* ── Text overlay ────────────────────────────────────── */
+
+.text-block-wrapper {
+  position: absolute;
+  top: 42%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 4rem;
+  /* GPU layer hint only when visible (managed by GSAP opacity) */
+  contain: layout style;
+}
+
+/* Subtle radial gradient behind text for contrast */
+.text-block-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: -3rem -5rem;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.3) 40%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+}
+
+.text-overlay-text {
+  font-size: clamp(1.4rem, 3.2vw, 2.8rem);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-align: center;
+  line-height: 1.35;
+  text-shadow:
+    0px 2px 10px rgba(0, 0, 0, 0.6),
+    0px 4px 24px rgba(0, 0, 0, 0.35);
+  user-select: none;
+  white-space: nowrap;
+}
+
+/* ── Credit section ──────────────────────────────────── */
+
+.credit-wrapper {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding-bottom: 2rem;
+  display: flex;
+  justify-content: center;
+  contain: layout style;
+}
+
+/* Soft bottom gradient — film credit feel */
+.credit-wrapper::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 10rem;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.text-credit {
+  font-size: clamp(0.6rem, 0.9vw, 0.8rem);
+  font-weight: 400;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+  text-shadow: 0px 1px 8px rgba(0, 0, 0, 0.5);
+  user-select: none;
+}
+
+/* ── Loading indicator ───────────────────────────────── */
+
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #000;
+  transition: opacity 0.6s ease;
+}
+
+.loading-overlay.loaded {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Bottom Navigation ───────────────────────────────── */
+
+.bottom-nav {
+  position: fixed;
+  bottom: clamp(1rem, 3vw, 2rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  pointer-events: auto;
+  /* contain: layout to prevent layout recalc from propagating */
+  contain: layout style;
+}
+
+.bottom-nav-inner {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: rgba(0, 0, 0, 0.85);
+  /* Use a lighter blur (8px instead of 16px) — 
+     backdrop-filter cost is O(blur_radius²) */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 9999px;
+  box-shadow: 
+    0 12px 40px rgba(0, 0, 0, 0.65),
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.bottom-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.95);
+  text-decoration: none;
+  transition: color 0.25s ease;
+  white-space: nowrap;
+}
+
+.bottom-nav-link:hover {
+  color: #ffffff;
+}
+
+.bottom-nav-link--emphasis {
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.bottom-nav-icon {
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (max-width: 640px) {
+  .bottom-nav-inner {
+    gap: 1rem;
+    padding: 0.5rem 1rem;
+  }
+  .bottom-nav-link {
+    font-size: 0.75rem;
+  }
+}
+
+/* ── Global Atmospheric Background ────────────────────── */
+/* 
+ * PERF: These are static decorative layers that only paint once.
+ * Using contain: strict to prevent unnecessary repaints.
+ */
+
+.ambient-bg-container {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(to bottom, #040404, #0a0a0a);
+}
+
+.ambient-lighting {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top center, rgba(255, 255, 255, 0.06), transparent 60%);
+}
+
+.ambient-grid {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(ellipse at center, black 20%, transparent 80%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 20%, transparent 80%);
+  contain: strict;
+}
+
+.ambient-noise {
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  background-image: url('data:image/svg+xml,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)"/%3E%3C/svg%3E');
+  contain: strict;
+}
+
+/* Show scrollbar only after cinematic section */
+.show-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.show-scrollbar::-webkit-scrollbar-track {
+  background: #111;
+}
+.show-scrollbar::-webkit-scrollbar-thumb {
+  background: #C9A84C;
+  border-radius: 2px;
+}
+
+/* Amber glow utility */
+.amber-glow {
+  box-shadow: 0 0 20px rgba(201, 168, 76, 0.15);
+}
+
+/* Card hover effect */
+.halcon-card {
+  background: #111111;
+  border: 1px solid #2a2a2a;
+  border-radius: 12px;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.halcon-card:hover {
+  border-color: #C9A84C;
+  box-shadow: 0 0 20px rgba(201, 168, 76, 0.1);
+}
+
+/* Amber left border for feature cards */
+.halcon-feature-card {
+  border-left: 2px solid #C9A84C;
+}
+
+/* Section spacing */
+.halcon-section {
+  padding: 6rem 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
