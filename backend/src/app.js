@@ -42,13 +42,18 @@ const buildApp = async () => {
 
   // Security headers
   await app.register(helmet, {
-    contentSecurityPolicy: false, // disabled for API
+    contentSecurityPolicy: false,
   })
 
   // CORS
   await app.register(cors, {
-    origin: config.isDev ? "*" : process.env.FRONTEND_URL,
+    origin: [
+      "http://localhost:3001",
+      "http://localhost:3000",
+      process.env.FRONTEND_URL,
+    ].filter(Boolean),
     methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
   })
 
   // Routes
