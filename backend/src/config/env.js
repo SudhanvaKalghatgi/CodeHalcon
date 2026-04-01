@@ -6,7 +6,6 @@ const requiredEnvVars = [
   "PORT",
   "NODE_ENV",
   "GITHUB_APP_ID",
-  "GITHUB_PRIVATE_KEY_PATH",
   "GITHUB_WEBHOOK_SECRET",
   "GROQ_API_KEY",
   "GROQ_MODEL",
@@ -24,18 +23,37 @@ requiredEnvVars.forEach((key) => {
 // Validate API key strength
 const apiKey = process.env.API_SECRET_KEY
 if (apiKey.length < 32) {
-  console.error("❌ API_SECRET_KEY must be at least 32 characters long")
+  console.error("API_SECRET_KEY must be at least 32 characters long")
   process.exit(1)
 }
 
+/**
+ * Load GitHub private key.
+ * Supports two modes:
+ * - GITHUB_PRIVATE_KEY env var: key contents directly (for Render/Railway/Vercel)
+ * - GITHUB_PRIVATE_KEY_PATH env var: path to .pem file (for local dev)
+ * GITHUB_PRIVATE_KEY takes precedence if both are set.
+ */
 const loadPrivateKey = () => {
-  try {
-    return readFileSync(process.env.GITHUB_PRIVATE_KEY_PATH, "utf8")
-  } catch (err) {
-    throw new Error(
-      `Failed to read GitHub private key from path "${process.env.GITHUB_PRIVATE_KEY_PATH}": ${err.message}`
-    )
+  if (process.env.GITHUB_PRIVATE_KEY) {
+    // Replace literal \n with actual newlines in case the env var was set
+    // with escaped newlines (common in CI/CD dashboards)
+    return process.env.GITHUB_PRIVATE_KEY.replace(/\\n/g, "\n")
   }
+
+  if (process.env.GITHUB_PRIVATE_KEY_PATH) {
+    try {
+      return readFileSync(process.env.GITHUB_PRIVATE_KEY_PATH, "utf8")
+    } catch (err) {
+      throw new Error(
+        `Failed to read GitHub private key from path "${process.env.GITHUB_PRIVATE_KEY_PATH}": ${err.message}`
+      )
+    }
+  }
+
+  throw new Error(
+    "Missing GitHub private key: set either GITHUB_PRIVATE_KEY (key contents) or GITHUB_PRIVATE_KEY_PATH (path to .pem file)"
+  )
 }
 
 export const config = {
