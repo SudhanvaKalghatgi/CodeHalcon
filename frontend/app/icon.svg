@@ -1,0 +1,5 @@
+<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <path d="M26 14C26 18.4183 22.4183 22 18 22H14L11 26L13 22H9C6 22 4 19 4 15C4 10 9 6 15 6C21 6 26 10 26 14Z" fill="#C9A84C"/>
+  <path d="M26 14L30 18L26 22L28 18L26 14Z" fill="#C9A84C"/>
+  <path d="M15 10C16.1046 10 17 10.8954 17 12C17 13.1046 16.1046 14 15 14C13.8954 14 13 13.1046 13 12C13 10.8954 13.8954 10 15 10Z" fill="black" fill-opacity="0.3"/>
+</svg>

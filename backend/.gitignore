@@ -2,4 +2,8 @@ node_modules/
 .env
 dist/
 .DS_Store
+# security
+*.pem
+codehalcon.*.pem
+*.pem
 *.log
