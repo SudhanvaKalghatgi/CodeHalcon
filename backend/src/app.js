@@ -51,7 +51,7 @@ const buildApp = async () => {
     methods: ["GET", "POST", "PUT", "DELETE"],
   })
 
-  // Routes
+  // Registered Routes
   await app.register(healthRoutes, { prefix: "/api/v1" })
   await app.register(webhookRoutes, { prefix: "/api/v1/webhook" })
   await app.register(reviewRoutes, { prefix: "/api/v1" })
