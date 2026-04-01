@@ -48,11 +48,25 @@ export interface RepoStats {
   avg_issues_per_pr: string | number;
 }
 
+const FETCH_TIMEOUT_MS = 8000;
+
 async function proxyFetch<T>(path: string): Promise<T> {
-  const res = await fetch(`/api/proxy${path}`);
-  if (!res.ok) throw new Error(`Request failed: ${path}`);
-  const json = await res.json();
-  return json.data;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const res = await fetch(`/api/proxy${path}`, { signal: controller.signal });
+    if (!res.ok) throw new Error(`Request failed: ${path} (${res.status})`);
+    const json = await res.json();
+    return json.data;
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw new Error(`Request timed out after ${FETCH_TIMEOUT_MS}ms: ${path}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export const api = {
@@ -63,12 +77,18 @@ export const api = {
     return proxyFetch<Repository[]>('/repositories');
   },
   getReviews(limit = 20): Promise<Review[]> {
-    return proxyFetch<Review[]>(`/reviews?limit=${limit}`);
+    const params = new URLSearchParams({ limit: String(limit) });
+    return proxyFetch<Review[]>(`/reviews?${params}`);
   },
   getRepoReviews(owner: string, repo: string, limit = 20): Promise<Review[]> {
-    return proxyFetch<Review[]>(`/repos/${owner}/${repo}/reviews?limit=${limit}`);
+    const params = new URLSearchParams({ limit: String(limit) });
+    return proxyFetch<Review[]>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/reviews?${params}`
+    );
   },
   getRepoStats(owner: string, repo: string): Promise<RepoStats> {
-    return proxyFetch<RepoStats>(`/repos/${owner}/${repo}/stats`);
+    return proxyFetch<RepoStats>(
+      `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/stats`
+    );
   },
 };

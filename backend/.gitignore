@@ -6,3 +6,4 @@ dist/
 *.pem
 codehalcon.*.pem
 *.pem
+*.log

@@ -13,6 +13,8 @@ export function formatRelativeTime(dateString: string | null | undefined): strin
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
+    // Future dates — return Unknown instead of "Just now"
+    if (diffInSeconds < 0) return 'Unknown';
     if (diffInSeconds < 60) return 'Just now';
 
     const diffInMinutes = Math.floor(diffInSeconds / 60);

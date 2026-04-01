@@ -1,8 +1,3 @@
-/**
- * Catch-all proxy route: /api/proxy/[...path]
- * Forwards requests to the backend with the API key injected server-side.
- * Sits at /api/proxy/* so it never conflicts with /api/auth/* (NextAuth).
- */
 import { NextRequest, NextResponse } from 'next/server';
 
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3000';
@@ -22,18 +17,38 @@ export async function GET(
   const search = request.nextUrl.search;
   const url = `${BACKEND_URL}/api/v1/${pathname}${search}`;
 
+  let res: Response;
   try {
-    const res = await fetch(url, {
+    res = await fetch(url, {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${API_KEY}`,
       },
       cache: 'no-store',
     });
-
-    const data = await res.json();
-    return NextResponse.json(data, { status: res.status });
   } catch {
     return NextResponse.json({ error: 'Backend unreachable' }, { status: 502 });
   }
+
+  // Try JSON first, fall back to raw text — preserves original status codes
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    try {
+      const data = await res.json();
+      return NextResponse.json(data, { status: res.status });
+    } catch {
+      const text = await res.text();
+      return new NextResponse(text, {
+        status: res.status,
+        headers: { 'Content-Type': 'text/plain' },
+      });
+    }
+  }
+
+  // Non-JSON response — forward as-is
+  const text = await res.text();
+  return new NextResponse(text, {
+    status: res.status,
+    headers: { 'Content-Type': contentType || 'text/plain' },
+  });
 }
