@@ -67,7 +67,7 @@ export default function AISystemBackground() {
           background: 'radial-gradient(circle, rgba(16,185,129,0.6) 0%, rgba(16,185,129,0.15) 30%, transparent 70%)',
         }}
       />
-
+//comment
       <style jsx global>{`
         @keyframes hero-drift {
           0%   { transform: scale(1.02) translate(0, 0); }
