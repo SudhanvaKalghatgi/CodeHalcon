@@ -1,11 +1,13 @@
 /**
  * Canvas Renderer — handles all canvas drawing and post-processing.
- * 
+ *
  * PERFORMANCE NOTES:
  * - ctx.filter blur is extremely expensive (CPU-bound, ~8-16ms per frame).
  *   We simulate the blur/darken transition with a black overlay + globalAlpha
  *   which is GPU-composited and costs <1ms.
  * - Cached dimensions & gradient avoid recalculation per draw.
+ * - Dimension cache now invalidates when frame aspect ratio changes
+ *   (fixes Scene 1 → Scene 2 transition if they have different aspect ratios).
  * - Minimal context state changes per frame.
  */
 
@@ -17,6 +19,7 @@ export interface CanvasContext {
   dpr: number;
   cachedDims: { w: number; h: number; x: number; y: number } | null;
   cachedGradient: CanvasGradient | null;
+  cachedAspect: number | null; // track last frame aspect to detect scene switches
   displayWidth: number;
   displayHeight: number;
 }
@@ -29,7 +32,7 @@ export function initCanvas(
   container: HTMLElement
 ): CanvasContext {
   const ctx = canvas.getContext('2d', { alpha: false })!;
-  const dpr = Math.min(window.devicePixelRatio || 1, 2); // Cap at 2x for perf
+  const dpr = Math.min(window.devicePixelRatio || 1, 2); // cap at 2x for perf
 
   const rect = container.getBoundingClientRect();
   const displayWidth = rect.width;
@@ -48,6 +51,7 @@ export function initCanvas(
     dpr,
     cachedDims: null,
     cachedGradient: null,
+    cachedAspect: null,
     displayWidth,
     displayHeight,
   };
@@ -75,16 +79,17 @@ export function handleResize(
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale(dpr, dpr);
 
-  // Invalidate caches
+  // Invalidate all caches on resize
   canvasCtx.cachedDims = null;
   canvasCtx.cachedGradient = null;
+  canvasCtx.cachedAspect = null;
 }
 
 /**
  * Draw a frame to the canvas with effect post-processing.
- * 
+ *
  * KEY OPTIMIZATION: Instead of using ctx.filter for blur (which is ~10ms CPU),
- * we use a simple black overlay with varying opacity to simulate the 
+ * we use a simple black overlay with varying opacity to simulate the
  * blur-to-black transition. This achieves the same cinematic effect at <1ms cost.
  */
 export function drawFrame(
@@ -96,26 +101,33 @@ export function drawFrame(
   const displayWidth = canvasCtx.displayWidth;
   const displayHeight = canvasCtx.displayHeight;
 
-  // 1. Calculate or use cached draw dimensions (cover fit)
-  if (!canvasCtx.cachedDims) {
-    const imgAspect = frame.naturalWidth / frame.naturalHeight;
+  // 1. Calculate or use cached draw dimensions (cover fit).
+  //    Invalidate cache if the frame's aspect ratio has changed (scene switch).
+  const frameAspect = frame.naturalWidth / frame.naturalHeight;
+
+  if (!canvasCtx.cachedDims || canvasCtx.cachedAspect !== frameAspect) {
     const canvasAspect = displayWidth / displayHeight;
 
     let drawW: number, drawH: number, drawX: number, drawY: number;
 
-    if (imgAspect > canvasAspect) {
+    if (frameAspect > canvasAspect) {
       drawH = displayHeight;
-      drawW = displayHeight * imgAspect;
+      drawW = displayHeight * frameAspect;
       drawX = (displayWidth - drawW) / 2;
       drawY = 0;
     } else {
       drawW = displayWidth;
-      drawH = displayWidth / imgAspect;
+      drawH = displayWidth / frameAspect;
       drawX = 0;
       drawY = (displayHeight - drawH) / 2;
     }
 
     canvasCtx.cachedDims = { w: drawW, h: drawH, x: drawX, y: drawY };
+    canvasCtx.cachedAspect = frameAspect;
+
+    // Also invalidate the gradient cache on scene switch since
+    // display dims might have shifted slightly
+    canvasCtx.cachedGradient = null;
   }
 
   const { w: drawW, h: drawH, x: drawX, y: drawY } = canvasCtx.cachedDims;
@@ -145,10 +157,9 @@ export function drawFrame(
 
   ctx.drawImage(frame, drawX, drawY, drawW, drawH);
 
-  // 3. Brightness/darken overlay — replaces expensive ctx.filter brightness
-  //    When brightness < 1, overlay a semi-transparent black rect
+  // 3. Brightness/darken overlay — replaces expensive ctx.filter brightness.
+  //    When brightness < 1, overlay a semi-transparent black rect.
   if (effects.brightness < 0.99) {
-    // Reset transform for overlay
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.scale(dpr, dpr);
 
