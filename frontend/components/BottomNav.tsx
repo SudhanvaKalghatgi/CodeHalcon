@@ -67,9 +67,14 @@ export default function BottomNav() {
         >
           GitHub
         </a>
-        <Link href="/auth/signin" className="bottom-nav-link">
+        <a
+          href="https://github.com/apps/codehalcon/installations/new"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bottom-nav-link"
+        >
           Install App
-        </Link>
+        </a>
         {isAuthed ? (
           <Link
             href="/dashboard"
