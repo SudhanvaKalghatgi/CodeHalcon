@@ -15,7 +15,7 @@ export async function GET(
 
   const pathname = path.join('/');
   const search = request.nextUrl.search;
-  const url = `${BACKEND_URL}/api/v1/${pathname}${search}`;
+  const url = `${BACKEND_URL}/${pathname}${search}`;
 
   let res: Response;
   try {
